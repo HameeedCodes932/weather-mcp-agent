@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import sys
 import logging
 import time
@@ -202,22 +203,32 @@ class WeatherAgent:
 
         return "I've reached the limit of follow-up questions. Let me know if you need anything else!"
 
-    async def _call_groq_with_retry(self, messages: list[dict]):
+    async def _call_groq_with_retry(self, messages: list[dict], force_no_tools: bool = False):
         last_error = None
+        tools_param = None if force_no_tools else (self._openai_tools if self._openai_tools else None)
+        tool_choice = "none" if force_no_tools else "auto"
         for attempt in range(MAX_RETRIES):
             try:
                 return self.groq_client.chat.completions.create(
                     model=MODEL_NAME,
                     messages=messages,
-                    tools=self._openai_tools if self._openai_tools else None,
-                    tool_choice="auto",
+                    tools=tools_param,
+                    tool_choice=tool_choice,
                 )
             except RateLimitError as e:
                 last_error = e
-                wait = 2 ** (attempt + 1)
+                wait = self._parse_rate_limit_wait(str(e))
+                if wait is None:
+                    wait = 2 ** (attempt + 1)
+                elif wait > 30:
+                    logger.warning("Groq rate limited — needs %ds. Please wait and try again.", wait)
+                    return None
                 logger.warning("Rate limited. Retrying in %ds (attempt %d/%d)", wait, attempt + 1, MAX_RETRIES)
                 await asyncio.sleep(wait)
             except APIStatusError as e:
+                if e.status_code == 400 and "tool_use_failed" in str(e):
+                    logger.warning("Tool call rejected by Groq, retrying without tools: %s", e)
+                    return await self._call_groq_with_retry(messages, force_no_tools=True)
                 if e.status_code >= 500 and attempt < MAX_RETRIES - 1:
                     last_error = e
                     await asyncio.sleep(2 ** attempt)
@@ -230,6 +241,15 @@ class WeatherAgent:
                     ) from e
                 raise
         logger.error("All Groq API retries exhausted: %s", last_error)
+        return None
+
+    @staticmethod
+    def _parse_rate_limit_wait(error_text: str) -> int | None:
+        m = re.search(r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", error_text)
+        if m:
+            minutes = int(m.group(1)) if m.group(1) else 0
+            seconds = int(float(m.group(2)))
+            return minutes * 60 + seconds
         return None
 
     def _coerce_tool_args(self, tool_name: str, args: dict) -> None:
