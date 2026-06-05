@@ -3,16 +3,26 @@ from src.mcp_server.server import mcp
 
 
 @pytest.mark.asyncio
-async def test_mcp_has_two_tools():
+async def test_mcp_has_nine_tools():
     tools = await mcp.list_tools()
-    assert len(tools) == 2
+    assert len(tools) == 9
 
 
 @pytest.mark.asyncio
 async def test_mcp_tool_names():
     tools = await mcp.list_tools()
     names = {t.name for t in tools}
-    assert names == {"get_current_weather", "get_weather_forecast"}
+    assert names == {
+        "get_current_weather",
+        "get_weather_forecast",
+        "read_file_tool",
+        "write_file_tool",
+        "append_file_tool",
+        "list_directory_tool",
+        "delete_file_tool",
+        "file_info_tool",
+        "search_files_tool",
+    }
 
 
 @pytest.mark.asyncio
