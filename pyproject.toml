@@ -1,0 +1,23 @@
+[project]
+name = "weather-mcp-agent"
+version = "0.1.0"
+description = "AI Agent with MCP Server for weather inquiries"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.6.0",
+    "httpx>=0.28.0",
+    "groq>=0.28.0",
+    "python-dotenv>=1.1.0",
+    "rich>=14.0.0",
+    "streamlit>=1.44.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.25.0",
+]
+
+[project.scripts]
+weather-mcp-server = "src.mcp_server.server:main"
+weather-cli = "src.cli.main:main"
+weather-web = "src.web.app:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
