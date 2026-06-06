@@ -14,6 +14,7 @@ try:
         get_file_info,
         search_files,
     )
+    from .email_tools import send_email
 except ImportError:
     from weather_api import get_weather_by_city, get_forecast_by_city
     from file_tools import (
@@ -25,6 +26,7 @@ except ImportError:
         get_file_info,
         search_files,
     )
+    from email_tools import send_email
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger("weather-mcp")
@@ -157,6 +159,23 @@ def search_files_tool(pattern: str) -> str:
         pattern: Glob pattern (e.g., "*.txt", "src/**/*.py", "data/*.csv")
     """
     return search_files(pattern)
+
+
+# ── Email Tools ──
+
+@mcp.tool()
+def send_email_tool(to: str, subject: str, body: str) -> str:
+    """Send an email via Gmail SMTP.
+
+    Use this when the user asks to send an email. Ask the user
+    for recipient address, subject, and body if not provided.
+
+    Args:
+        to: Recipient email address
+        subject: Email subject line
+        body: Plain text email body content
+    """
+    return send_email(to, subject, body)
 
 
 # ── Helpers ──

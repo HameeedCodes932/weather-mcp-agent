@@ -3,9 +3,9 @@ from src.mcp_server.server import mcp
 
 
 @pytest.mark.asyncio
-async def test_mcp_has_nine_tools():
+async def test_mcp_has_ten_tools():
     tools = await mcp.list_tools()
-    assert len(tools) == 9
+    assert len(tools) == 10
 
 
 @pytest.mark.asyncio
@@ -22,6 +22,7 @@ async def test_mcp_tool_names():
         "delete_file_tool",
         "file_info_tool",
         "search_files_tool",
+        "send_email_tool",
     }
 
 
