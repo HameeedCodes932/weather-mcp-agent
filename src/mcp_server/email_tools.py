@@ -16,20 +16,21 @@ def _load_env():
         pass
 
 
-def _get_email_config() -> tuple[str, str]:
+def _get_smtp_config() -> dict:
     _load_env()
-    address = os.getenv("GMAIL_ADDRESS")
-    password = os.getenv("GMAIL_APP_PASSWORD")
-    if not address or not password:
-        raise ValueError(
-            "Gmail not configured. Set GMAIL_ADDRESS and GMAIL_APP_PASSWORD in .env\n"
-            "Get an App Password at: https://myaccount.google.com/apppasswords"
-        )
-    return address, password
+    return {
+        "host": os.getenv("SMTP_HOST", "smtp-relay.brevo.com"),
+        "port": int(os.getenv("SMTP_PORT", "587")),
+        "username": os.getenv("SMTP_USERNAME"),
+        "password": os.getenv("SMTP_PASSWORD"),
+        "from_addr": os.getenv("SMTP_FROM", os.getenv("SMTP_USERNAME", "")),
+    }
 
 
 def send_email(to: str, subject: str, body: str) -> str:
-    """Send an email via Gmail SMTP.
+    """Send an email via SMTP.
+
+    Configure SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD in .env.
 
     Args:
         to: Recipient email address
@@ -37,29 +38,38 @@ def send_email(to: str, subject: str, body: str) -> str:
         body: Plain text email body
     """
     try:
-        sender, app_password = _get_email_config()
+        cfg = _get_smtp_config()
+        if not cfg["username"] or not cfg["password"]:
+            return (
+                "Email not configured. Set these in .env:\n"
+                "  SMTP_HOST=smtp.gmail.com\n"
+                "  SMTP_PORT=587\n"
+                "  SMTP_USERNAME=your_email@gmail.com\n"
+                "  SMTP_PASSWORD=your_app_password\n\n"
+                "For Gmail: https://myaccount.google.com/apppasswords\n"
+                "For Brevo: https://brevo.com (free, 300 emails/day)"
+            )
 
         msg = MIMEMultipart("alternative")
-        msg["From"] = sender
+        msg["From"] = cfg["from_addr"]
         msg["To"] = to
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain", "utf-8"))
 
         context = ssl.create_default_context()
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        with smtplib.SMTP(cfg["host"], cfg["port"]) as server:
             server.starttls(context=context)
-            server.login(sender, app_password)
-            server.sendmail(sender, to, msg.as_string())
+            server.login(cfg["username"], cfg["password"])
+            server.sendmail(cfg["from_addr"], to, msg.as_string())
 
         logger.info("Email sent to %s: %s", to, subject)
         return f"Email sent successfully to {to} with subject '{subject}'."
 
     except smtplib.SMTPAuthenticationError:
         return (
-            "Failed to authenticate with Gmail. Make sure you're using an App Password, "
-            "not your regular password.\n"
-            "Generate one at: https://myaccount.google.com/apppasswords\n"
-            "(Requires 2-Step Verification enabled on your Google account.)"
+            "Failed to authenticate with the SMTP server. Check your username and password in .env.\n"
+            "For Gmail, use an App Password: https://myaccount.google.com/apppasswords\n"
+            "For Brevo, use your SMTP credentials from https://brevo.com"
         )
     except ValueError as e:
         return str(e)
