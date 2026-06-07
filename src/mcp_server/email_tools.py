@@ -7,11 +7,13 @@ from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger("weather-mcp")
 
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
 
 def _load_env():
     try:
         from dotenv import load_dotenv
-        load_dotenv()
+        load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
     except ImportError:
         pass
 
@@ -39,15 +41,16 @@ def send_email(to: str, subject: str, body: str) -> str:
     """
     try:
         cfg = _get_smtp_config()
+        logger.info("SMTP config: host=%s, user=%s, from=%s", cfg["host"], cfg["username"], cfg["from_addr"])
         if not cfg["username"] or not cfg["password"]:
             return (
                 "Email not configured. Set these in .env:\n"
-                "  SMTP_HOST=smtp.gmail.com\n"
+                "  SMTP_HOST=smtp-relay.brevo.com\n"
                 "  SMTP_PORT=587\n"
-                "  SMTP_USERNAME=your_email@gmail.com\n"
-                "  SMTP_PASSWORD=your_app_password\n\n"
-                "For Gmail: https://myaccount.google.com/apppasswords\n"
-                "For Brevo: https://brevo.com (free, 300 emails/day)"
+                "  SMTP_USERNAME=your_brevo_login\n"
+                "  SMTP_PASSWORD=your_smtp_key\n"
+                "  SMTP_FROM=your_sender_email\n\n"
+                "Get Brevo SMTP credentials at: https://app.brevo.com/settings/keys/smtp"
             )
 
         msg = MIMEMultipart("alternative")
